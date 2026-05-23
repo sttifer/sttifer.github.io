@@ -91,14 +91,14 @@ export const CONFIG = {
         // Exemplo para 5 minutos: (5 * 60 * 1000) / 24 = 12500
         hourDuration: f(750), // 750 frames = 12.5 segundos
         dayStart: 6,
-        afternoonStart: 14,
-        nightStart: 22,
+        afternoonStart: 10,
+        nightStart: 12,
         totalHours: 24
     },
     enemies: {
         spawnRate: f(120), // 120 frames = 2 segundos
         maxPerIsland: 2, // Máximo de inimigos vivos por ilha simultaneamente
-        damage: 5,
+        damage: 50,
         damageMultiplier: 1.2, // Aumenta o dano em 20% a cada dia
         speed: 70,
         health: 20,

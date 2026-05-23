@@ -24,7 +24,7 @@ export class Gameplay extends Phaser.Scene {
         if (data && data.resetSave) {
             localStorage.removeItem('phaser_game_save');
         }
-        this.isGameOver = false;
+        this.isDead = false;
         this.loadGame(); 
     }
 
@@ -61,7 +61,7 @@ export class Gameplay extends Phaser.Scene {
     }
 
     saveGame() {
-        if (!this.isGameOver && this.player) {
+        if (!this.isDead && this.player) {
             this.playerPos = { x: this.player.x, y: this.player.y };
             this.playerHp = this.player.getData('hp');
             this.playerMaxHp = this.player.getData('maxHp');
@@ -164,7 +164,7 @@ export class Gameplay extends Phaser.Scene {
 
         // O pincel (alpha mask) e o RenderTexture para mesclagem perfeita
         this.lightBrush = this.make.image({ key: 'lightBrush', add: false }).setOrigin(0.5, 0.5);
-        this.ambientOverlay = this.add.renderTexture(0, 0, 800, 600).setOrigin(0, 0).setScrollFactor(0).setDepth(900);
+        this.ambientOverlay = this.add.renderTexture(0, 0, this.scale.width, this.scale.height).setOrigin(0, 0).setScrollFactor(0).setDepth(900);
 
         this.tweens.add({ targets: this, pulseOffset: CONFIG.light.pulseIntensity, duration: CONFIG.light.pulseDuration, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
@@ -173,31 +173,37 @@ export class Gameplay extends Phaser.Scene {
         this.createCanvasHUD();
         this.createClock();
         
+        this.createVirtualJoystick();
+
         this.deathParticles = this.add.particles(0, 0, null, { speed: { min: 50, max: 150 }, scale: { start: 0.2, end: 0 }, lifespan: 500, blendMode: 'ADD', emitting: false });
         this.spawnParticles = this.add.particles(0, 0, null, { speed: { min: 20, max: 80 }, scale: { start: 0.3, end: 0 }, lifespan: 600, tint: 0x9b59b6, blendMode: 'ADD', emitting: false });
 
         this.time.addEvent({ delay: CONFIG.enemies.spawnRate, callback: this.spawnEnemy, callbackScope: this, loop: true });
         document.getElementById('restart-btn').onclick = () => this.restartGame();
+
+        this.scale.on('resize', this.resize, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.resize, this));
+        this.resize(this.scale.gameSize);
     }
 
     createCanvasHUD() {
-        this.hudContainer = this.add.container(330, 40).setScrollFactor(0).setDepth(1000);
+        this.hudContainer = this.add.container(this.scale.width / 2, 40).setScrollFactor(0).setDepth(1000);
         
         // Background do HUD
         const bg = this.add.graphics();
         bg.fillStyle(0x000000, 0.6);
-        bg.fillRoundedRect(-320, -25, 400, 50, 10);
+        bg.fillRoundedRect(-200, -25, 400, 50, 10);
         bg.lineStyle(2, 0xffffff, 0.2);
-        bg.strokeRoundedRect(-320, -25, 400, 50, 10);
+        bg.strokeRoundedRect(-200, -25, 400, 50, 10);
         this.hudContainer.add(bg);
 
         // HP Bar no HUD
         this.hudHPBar = this.add.graphics();
-        this.hudHPText = this.add.text(-300, 0, '100/100', { fontSize: '14px', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.hudHPText = this.add.text(-180, 0, '100/100', { fontSize: '14px', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.hudContainer.add([this.hudHPBar, this.hudHPText]);
 
         // Recursos
-        const startX = -170;
+        const startX = -60;
         const spacing = 85;
         this.hudWood = this.add.text(startX, 0, '🪵 0', { fontSize: '18px' }).setOrigin(0, 0.5);
         this.hudStone = this.add.text(startX + spacing, 0, '🪨 0', { fontSize: '18px' }).setOrigin(0, 0.5);
@@ -210,26 +216,28 @@ export class Gameplay extends Phaser.Scene {
         this.createResetButton();
         
         // Contador de FPS (Canto superior direito)
-        this.fpsText = this.add.text(790, 10, 'FPS: --', { fontSize: '16px', fontStyle: 'bold', fill: '#00ff00', stroke: '#000000', strokeThickness: 3 }).setOrigin(1, 0).setScrollFactor(0).setDepth(2000);
+        this.fpsText = this.add.text(this.scale.width - 10, 10, 'FPS: --', { fontSize: '16px', fontStyle: 'bold', fill: '#00ff00', stroke: '#000000', strokeThickness: 3 }).setOrigin(1, 0).setScrollFactor(0).setDepth(2000);
     }
 
     createResetButton() {
-        const resetBtn = this.add.text(60, 560, 'DEBUG RESET', { 
+        this.resetBtn = this.add.text(60, this.scale.height - 40, 'New Game...', { 
             fontSize: '14px', fontStyle: 'bold', color: '#ffffff', 
             backgroundColor: '#c0392b', padding: { x: 10, y: 5 } 
         }).setOrigin(0.5).setScrollFactor(0).setDepth(2000).setInteractive({ useHandCursor: true });
 
-        resetBtn.on('pointerover', () => resetBtn.setStyle({ backgroundColor: '#e74c3c' }));
-        resetBtn.on('pointerout', () => resetBtn.setStyle({ backgroundColor: '#c0392b' }));
-        resetBtn.on('pointerdown', () => resetBtn.setScale(0.9));
-        resetBtn.on('pointerup', () => {
-            resetBtn.setScale(1);
-            console.log("[DEBUG] Botão Reset clicado!");
-            localStorage.removeItem('phaser_game_save');
-            this.isGameOver = true;
-            const gameOverScreen = document.getElementById('game-over');
-            if (gameOverScreen) gameOverScreen.style.display = 'none';
-            this.scene.restart({ resetSave: true });
+        this.resetBtn.on('pointerover', () => this.resetBtn.setStyle({ backgroundColor: '#e74c3c' }));
+        this.resetBtn.on('pointerout', () => this.resetBtn.setStyle({ backgroundColor: '#c0392b' }));
+        this.resetBtn.on('pointerdown', () => this.resetBtn.setScale(0.9));
+        this.resetBtn.on('pointerup', () => {
+            this.resetBtn.setScale(1);
+            if (window.confirm("Tem certeza que deseja começar um novo jogo? Todo o seu progresso será perdido.")) {
+                console.log("[DEBUG] Botão New Game clicado!");
+                localStorage.removeItem('phaser_game_save');
+                this.isDead = true;
+                const gameOverScreen = document.getElementById('game-over');
+                if (gameOverScreen) gameOverScreen.style.display = 'none';
+                this.scene.restart({ resetSave: true });
+            }
         });
     }
 
@@ -247,10 +255,38 @@ export class Gameplay extends Phaser.Scene {
             
             this.hudHPBar.clear();
             this.hudHPBar.fillStyle(0x444444, 1);
-            this.hudHPBar.fillRect(-305, -10, 100, 20);
+            this.hudHPBar.fillRect(-185, -10, 100, 20);
             this.hudHPBar.fillStyle(0xe74c3c, 1);
-            this.hudHPBar.fillRect(-305, -10, (hp / maxHp) * 100, 20);
+            this.hudHPBar.fillRect(-185, -10, (hp / maxHp) * 100, 20);
         }
+    }
+
+    resize(gameSize) {
+        if (!this.cameras || !this.cameras.main) return;
+        const width = gameSize.width;
+        const height = gameSize.height;
+
+        this.cameras.main.setSize(width, height);
+        
+        if (this.ambientOverlay) this.ambientOverlay.setSize(width, height);
+        
+        if (this.hudContainer) {
+            this.hudContainer.setPosition(width / 2, 40);
+            const scale = width < 420 ? width / 420 : 1; // Se a tela for muito fina (celular em pé), diminui o HUD
+            this.hudContainer.setScale(scale);
+        }
+        
+        if (this.clockContainer) {
+            // No mobile Portrait (tela em pé), abaixamos o relógio para não sobrepor o HUD
+            if (width < height) {
+                this.clockContainer.setPosition(width - 70, 130);
+            } else {
+                this.clockContainer.setPosition(width - 70, 80);
+            }
+        }
+        
+        if (this.fpsText) this.fpsText.setPosition(width - 10, 10);
+        if (this.resetBtn) this.resetBtn.setPosition(60, height - 40);
     }
 
     generateIslands(gridSize, islandSize) {
@@ -467,7 +503,7 @@ export class Gameplay extends Phaser.Scene {
 
 
     createClock() {
-        this.clockContainer = this.add.container(730, 80).setScrollFactor(0).setDepth(1001);
+        this.clockContainer = this.add.container(this.scale.width - 70, 80).setScrollFactor(0).setDepth(1001);
         this.clockBg = this.add.graphics();
         this.clockHand = this.add.graphics();
         
@@ -495,7 +531,7 @@ export class Gameplay extends Phaser.Scene {
     }
 
     spawnEnemy() {
-        if (this.currentPhase !== 'night' || this.isGameOver) return;
+        if (this.currentPhase !== 'night' || this.isDead) return;
         
         const tile = CONFIG.world.tileSize;
         const { islandSizeInTiles } = CONFIG.world;
@@ -534,7 +570,7 @@ export class Gameplay extends Phaser.Scene {
         
         // Atraso de 600ms para dar tempo da partícula explodir antes do inimigo pisar no mapa
         this.time.delayedCall(600, () => {
-            if (this.isGameOver || this.currentPhase !== 'night') return;
+            if (this.isDead || this.currentPhase !== 'night') return;
             const enemy = this.add.circle(x, y, 12, 0xe74c3c).setDepth(90);
             this.physics.add.existing(enemy); enemy.body.setCircle(12);
             const maxHp = Math.floor(CONFIG.enemies.health * Math.pow(CONFIG.enemies.healthMultiplier, this.currentDay - 1));
@@ -551,7 +587,7 @@ export class Gameplay extends Phaser.Scene {
         this.updateHUD(); this.showFloatingText(player.x, player.y - 30, `-${dmg} HP`, '#ff0000');
         this.isInvincible = true;
         this.tweens.add({ targets: this.playerGraphics, alpha: 0.3, duration: 100, yoyo: true, repeat: (CONFIG.player.invincibilityDuration / 200) - 1, onComplete: () => { this.isInvincible = false; this.playerGraphics.setAlpha(1); } });
-        if (hp <= 0) this.triggerGameOver();
+        if (hp <= 0) this.triggerDeath();
     }
 
     handleCombat(time) {
@@ -585,7 +621,7 @@ export class Gameplay extends Phaser.Scene {
     }
 
     update(time, delta) {
-        if (this.isGameOver) return;
+        if (this.isDead) return;
         this.handleRespawns();
         this.cullObjects(); // Sistema de otimização de renderização (Chunks visuais)
         
@@ -622,7 +658,7 @@ export class Gameplay extends Phaser.Scene {
         } else {
             this.cancelCrafting(delta);
         }
-        if (this.keys.K.isDown) this.triggerGameOver();
+        if (this.keys.K.isDown) this.triggerDeath();
         if (time > this.lastSaveTime + this.saveInterval) { this.saveGame(); this.lastSaveTime = time; }
         
         // Lógica de cura constante caso o jogador esteja na zona do Santuário
@@ -728,15 +764,116 @@ export class Gameplay extends Phaser.Scene {
         }
     }
 
-    triggerGameOver() {
-        this.isGameOver = true; this.player.setVelocity(0); document.getElementById('game-over').style.display = 'flex';
-        this.resources = { ...CONFIG.resources }; this.tools = { ...CONFIG.tools };
-        this.buildingsBuilt = { workbench: false, armory: false, healer: false };
-        this.worldSeed = Math.random().toString(36).substring(7);
-        this.harvestedNodes = []; this.builtBridges = []; this.gameTime = 6; this.currentDay = 1; this.damagedNodes = {}; this.playerPos = null; this.playerHp = 100; this.playerMaxHp = 100; this.saveGame();
+    triggerDeath() {
+        if (this.isDead) return;
+        this.isDead = true; 
+        this.player.setVelocity(0); 
+        
+        if (this.joystickActive) {
+            this.joystickActive = false;
+            this.joystickBase.setVisible(false);
+            this.joystickThumb.setVisible(false);
+            this.joystickVector.set(0, 0);
+        }
+
+        const cam = this.cameras.main;
+        this.deathContainer = this.add.container(cam.width / 2, cam.height / 2).setDepth(3000).setScrollFactor(0);
+        
+        const bg = this.add.rectangle(0, 0, cam.width * 2, cam.height * 2, 0x000000, 0.8);
+        const text = this.add.text(0, 0, 'VOCÊ DESMAIOU...\nClique na tela para continuar', { 
+            fontSize: '24px', fontStyle: 'bold', fill: '#e74c3c', align: 'center', stroke: '#000000', strokeThickness: 4 
+        }).setOrigin(0.5);
+        
+        this.deathContainer.add([bg, text]);
+
+        this.time.delayedCall(500, () => {
+            this.input.once('pointerdown', this.respawnPlayer, this);
+        });
     }
 
-    restartGame() { document.getElementById('game-over').style.display = 'none'; this.isGameOver = false; this.scene.restart(); }
+    respawnPlayer() {
+        if (this.deathContainer) {
+            this.deathContainer.destroy();
+        }
+
+        const tile = CONFIG.world.tileSize;
+        const { islandSizeInTiles } = CONFIG.world;
+        const islandSize = islandSizeInTiles * tile;
+        const rawCenter = 2 * islandSize + islandSize / 2;
+        const baseX = Math.floor(rawCenter / tile) * tile + tile / 2;
+        const baseY = Math.floor(rawCenter / tile) * tile + tile / 2;
+
+        this.player.setPosition(baseX, baseY);
+        this.player.setData('hp', this.player.getData('maxHp'));
+        this.updateHUD();
+        this.isInvincible = false;
+        this.playerGraphics.setAlpha(1);
+        
+        // Mata inimigos existentes silenciosamente para um renascimento seguro
+        const enemiesToKill = [];
+        this.enemies.children.iterate(e => { if(e) enemiesToKill.push(e); });
+        enemiesToKill.forEach(e => {
+            if (e.getData('healthBar')) e.getData('healthBar').destroy();
+            e.destroy();
+        });
+
+        this.isDead = false;
+    }
+
+    restartGame() { document.getElementById('game-over').style.display = 'none'; this.isDead = false; this.scene.restart(); }
+
+    createVirtualJoystick() {
+        this.joystickBase = this.add.circle(0, 0, 50, 0x888888, 0.4).setDepth(2000).setScrollFactor(0).setVisible(false);
+        this.joystickThumb = this.add.circle(0, 0, 25, 0xcccccc, 0.7).setDepth(2001).setScrollFactor(0).setVisible(false);
+        this.joystickActive = false;
+        this.joystickPointerId = null;
+        this.joystickVector = new Phaser.Math.Vector2(0, 0);
+
+        this.input.on('pointerdown', (pointer, gameObjects) => {
+            if (this.isDead) return;
+            // Impede a ativação do joystick caso você toque em um botão da HUD (ex: Reset)
+            if (gameObjects.length > 0) return; 
+            
+            this.joystickActive = true;
+            this.joystickPointerId = pointer.id;
+            this.joystickBase.setPosition(pointer.x, pointer.y).setVisible(true);
+            this.joystickThumb.setPosition(pointer.x, pointer.y).setVisible(true);
+            this.joystickVector.set(0, 0);
+        });
+
+        this.input.on('pointermove', (pointer) => {
+            if (this.joystickActive && pointer.id === this.joystickPointerId) {
+                const dist = Phaser.Math.Distance.Between(this.joystickBase.x, this.joystickBase.y, pointer.x, pointer.y);
+                const angle = Phaser.Math.Angle.Between(this.joystickBase.x, this.joystickBase.y, pointer.x, pointer.y);
+                const maxDist = 50;
+                
+                let thumbX = pointer.x;
+                let thumbY = pointer.y;
+
+                if (dist > maxDist) {
+                    thumbX = this.joystickBase.x + Math.cos(angle) * maxDist;
+                    thumbY = this.joystickBase.y + Math.sin(angle) * maxDist;
+                }
+
+                this.joystickThumb.setPosition(thumbX, thumbY);
+                this.joystickVector.x = (thumbX - this.joystickBase.x) / maxDist;
+                this.joystickVector.y = (thumbY - this.joystickBase.y) / maxDist;
+            }
+        });
+
+        const stopJoystick = (pointer) => {
+            if (this.joystickActive && pointer.id === this.joystickPointerId) {
+                this.joystickActive = false;
+                this.joystickPointerId = null;
+                this.joystickBase.setVisible(false);
+                this.joystickThumb.setVisible(false);
+                this.joystickVector.set(0, 0);
+            }
+        };
+
+        this.input.on('pointerup', stopJoystick);
+        this.input.on('pointerupoutside', stopJoystick);
+    }
 
     handleHarvesting(time) {
         if (this.currentPhase === 'night') return false; // Impede coleta de recursos durante a noite
@@ -984,10 +1121,16 @@ export class Gameplay extends Phaser.Scene {
         if (this.cursors.up.isDown || this.keys.W.isDown) vy -= 1;
         if (this.cursors.down.isDown || this.keys.S.isDown) vy += 1;
         
+        if (this.joystickActive) {
+            vx += this.joystickVector.x;
+            vy += this.joystickVector.y;
+        }
+
         if (vx !== 0 || vy !== 0) {
             const length = Math.sqrt(vx * vx + vy * vy);
-            vx = (vx / length) * CONFIG.player.speed;
-            vy = (vy / length) * CONFIG.player.speed;
+            const normLength = Math.min(length, 1); // Garante que a combinação entre teclado + joystick não passe do multiplicador máximo (1)
+            vx = (vx / length) * normLength * CONFIG.player.speed;
+            vy = (vy / length) * normLength * CONFIG.player.speed;
         }
         this.player.setVelocity(vx, vy);
     }
