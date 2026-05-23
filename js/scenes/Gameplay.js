@@ -215,15 +215,17 @@ export class Gameplay extends Phaser.Scene {
         // Botão de Reset (Debug) - Posicionado no canto inferior esquerdo
         this.createResetButton();
         
+        this.createFullscreenButton();
+
         // Contador de FPS (Canto superior direito)
         this.fpsText = this.add.text(this.scale.width - 10, 10, 'FPS: --', { fontSize: '16px', fontStyle: 'bold', fill: '#00ff00', stroke: '#000000', strokeThickness: 3 }).setOrigin(1, 0).setScrollFactor(0).setDepth(2000);
     }
 
     createResetButton() {
-        this.resetBtn = this.add.text(60, this.scale.height - 40, 'New Game...', { 
+        this.resetBtn = this.add.text(10, 60, 'New Game...', { 
             fontSize: '14px', fontStyle: 'bold', color: '#ffffff', 
             backgroundColor: '#c0392b', padding: { x: 10, y: 5 } 
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(2000).setInteractive({ useHandCursor: true });
+        }).setOrigin(0, 0).setScrollFactor(0).setDepth(2000).setInteractive({ useHandCursor: true });
 
         this.resetBtn.on('pointerover', () => this.resetBtn.setStyle({ backgroundColor: '#e74c3c' }));
         this.resetBtn.on('pointerout', () => this.resetBtn.setStyle({ backgroundColor: '#c0392b' }));
@@ -237,6 +239,26 @@ export class Gameplay extends Phaser.Scene {
                 const gameOverScreen = document.getElementById('game-over');
                 if (gameOverScreen) gameOverScreen.style.display = 'none';
                 this.scene.restart({ resetSave: true });
+            }
+        });
+    }
+
+    createFullscreenButton() {
+        // Ícone de tela cheia no canto superior esquerdo
+        this.fullscreenBtn = this.add.text(10, 10, '⛶', { 
+            fontSize: '24px', fontStyle: 'bold', color: '#ffffff', 
+            backgroundColor: '#34495e', padding: { x: 8, y: 5 } 
+        }).setOrigin(0, 0).setScrollFactor(0).setDepth(2000).setInteractive({ useHandCursor: true });
+
+        this.fullscreenBtn.on('pointerover', () => this.fullscreenBtn.setStyle({ backgroundColor: '#2c3e50' }));
+        this.fullscreenBtn.on('pointerout', () => this.fullscreenBtn.setStyle({ backgroundColor: '#34495e' }));
+        this.fullscreenBtn.on('pointerdown', () => this.fullscreenBtn.setScale(0.9));
+        this.fullscreenBtn.on('pointerup', () => {
+            this.fullscreenBtn.setScale(1);
+            if (this.scale.isFullscreen) {
+                this.scale.stopFullscreen();
+            } else {
+                this.scale.startFullscreen();
             }
         });
     }
@@ -270,23 +292,29 @@ export class Gameplay extends Phaser.Scene {
         
         if (this.ambientOverlay) this.ambientOverlay.setSize(width, height);
         
+        const isNarrow = width < 550;
+        const hudScale = isNarrow ? Math.min(width / 420, 1) : 1;
+        
+        // Margem de segurança no topo (afasta da barra de endereço/notch no mobile)
+        const safeTopPadding = isNarrow ? 45 : 10;
+
         if (this.hudContainer) {
-            this.hudContainer.setPosition(width / 2, 40);
-            const scale = width < 420 ? width / 420 : 1; // Se a tela for muito fina (celular em pé), diminui o HUD
-            this.hudContainer.setScale(scale);
+            this.hudContainer.setPosition(width / 2, safeTopPadding + 25);
+            this.hudContainer.setScale(hudScale);
         }
         
+        // Desce os botões laterais respeitando a margem de segurança
+        const sideUiY = isNarrow ? safeTopPadding + 65 : safeTopPadding;
+
+        if (this.fullscreenBtn) this.fullscreenBtn.setPosition(10, sideUiY);
+        if (this.resetBtn) this.resetBtn.setPosition(10, sideUiY + 45);
+        if (this.fpsText) this.fpsText.setPosition(width - 10, sideUiY);
+
         if (this.clockContainer) {
-            // No mobile Portrait (tela em pé), abaixamos o relógio para não sobrepor o HUD
-            if (width < height) {
-                this.clockContainer.setPosition(width - 70, 130);
-            } else {
-                this.clockContainer.setPosition(width - 70, 80);
-            }
+            const clockScale = isNarrow ? 0.75 : 1;
+            this.clockContainer.setScale(clockScale);
+            this.clockContainer.setPosition(width - (55 * clockScale), sideUiY + 25 + (50 * clockScale));
         }
-        
-        if (this.fpsText) this.fpsText.setPosition(width - 10, 10);
-        if (this.resetBtn) this.resetBtn.setPosition(60, height - 40);
     }
 
     generateIslands(gridSize, islandSize) {
