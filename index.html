@@ -1,25 +1,625 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-PT" class="scroll-smooth scroll-pt-20">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phaser Top-Down Survival</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <title>Andrews Vinícius | Senior Backend & Game Developer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Press+Start+2P&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .font-inter { font-family: 'Inter', sans-serif; }
+        .font-arcade { font-family: 'Press Start 2P', monospace; }
+        .font-code { font-family: 'Fira Code', monospace; }
+        
+        /* Barra de rolagem personalizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1d4ed8;
+        }
+
+        /* Efeito de Scanline CRT para o Modo Retro */
+        .crt-screen {
+            position: relative;
+            overflow: hidden;
+        }
+        .crt-screen::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            aspect-ratio: 4/3;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Animação de flicker para o ecrã retro */
+        @keyframes flicker {
+            0% { opacity: 0.98; }
+            50% { opacity: 1; }
+            100% { opacity: 0.99; }
+        }
+        .crt-flicker {
+            animation: flicker 0.15s infinite;
+        }
+    </style>
 </head>
-<div id="outer-container">
-    <div id="game-container">
-    </div>
-</div>
-    
-    <div id="game-over" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; flex-direction: column; justify-content: center; align-items: center; z-index: 100;">
-        <h1>GAME OVER</h1>
-        <p>A semente do mundo mudou!</p>
-        <button id="restart-btn" style="padding: 10px 20px; font-size: 20px; cursor: pointer;">Recomeçar</button>
+<body class="bg-slate-950 text-slate-100 font-inter min-h-screen selection:bg-indigo-500 selection:text-white transition-colors duration-500 overflow-x-hidden">
+
+<div id="app" class="relative">
+
+    <!-- Botão Flutuante de Alternância de Modo -->
+    <div class="fixed bottom-6 left-6 z-50">
+        <button onclick="togglePortfolioMode()" id="modeToggleBtn" title="Alternar Modo de Visualização" class="group relative p-4 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center">
+            <span class="absolute right-0 top-0 flex h-3 w-3 -mt-1 -mr-1">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-pink-500"></span>
+            </span>
+            <!-- Ícone de Controlador SVG -->
+            <svg id="toggleIcon" class="w-6 h-6 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11h.01M19 11h.01M17 9h.01M17 13h.01M5 11h4M7 9v4M4 18h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+        </button>
     </div>
 
-    <script type="module" src="js/main.js"></script>
-</body>
-</html>
+    <!-- CONTROLO DE ÁUDIO (APENAS PARA O MODO ARCADE) -->
+    <div class="fixed bottom-6 right-6 z-50 hidden" id="audioToggleContainer">
+        <button onclick="toggleAudio()" id="audioToggleBtn" class="p-3 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors border border-slate-700">
+            <svg id="audioIcon" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. MODO CORPORATIVO (ENTERPRISE) -->
+    <!-- ========================================== -->
+    <div id="corporateMode" class="block transition-all duration-500">
+        
+        <!-- Navbar Fixa -->
+        <div class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50">
+            <nav class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center relative">
+                <div class="flex items-center gap-3">
+                    <span class="font-code text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">&lt;AV /&gt;</span>
+                    <span class="text-xs text-slate-400 border border-slate-800 rounded-full px-2.5 py-0.5 font-code">v3.1.0</span>
+                </div>
+                <div class="hidden md:flex gap-8 text-sm text-slate-300 font-medium">
+                    <a href="#sobre" class="hover:text-violet-400 transition-colors">Sobre Mim</a>
+                    <a href="#skills" class="hover:text-violet-400 transition-colors">Tecnologias</a>
+                    <a href="#arquitetura" class="hover:text-violet-400 transition-colors">Clean Architecture</a>
+                    <a href="#contato" class="hover:text-violet-400 transition-colors">Contacto</a>
+                </div>
+
+                <!-- Botão Menu Mobile -->
+                <button onclick="toggleMobileMenu()" class="md:hidden text-slate-300 hover:text-white focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </nav>
+
+            <!-- Dropdown Menu Mobile -->
+            <div id="mobileMenu" class="hidden md:hidden absolute top-full left-0 w-full bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-xl">
+                <div class="flex flex-col px-6 py-4 gap-4 text-sm text-slate-300 font-medium">
+                    <a href="#sobre" onclick="toggleMobileMenu()" class="hover:text-violet-400 transition-colors">Sobre Mim</a>
+                    <a href="#skills" onclick="toggleMobileMenu()" class="hover:text-violet-400 transition-colors">Tecnologias</a>
+                    <a href="#arquitetura" onclick="toggleMobileMenu()" class="hover:text-violet-400 transition-colors">Clean Architecture</a>
+                    <a href="#contato" onclick="toggleMobileMenu()" class="hover:text-violet-400 transition-colors">Contacto</a>
+                </div>
+            </div>
+        </div>
+
+        <header class="max-w-7xl mx-auto px-6 pt-12 pb-24 relative overflow-hidden">
+            <!-- Gradientes de Fundo para Profundidade Visual -->
+            <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+            <div class="absolute top-1/3 right-1/4 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+            <div class="grid lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
+                        <span class="flex h-2 w-2 rounded-full bg-violet-400 animate-pulse"></span>
+                        Disponível para Projetos Complexos & Liderança Técnica
+                    </div>
+                    <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none">
+                        Andrews Vinícius
+                    </h1>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-300 bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+                        Senior Backend Developer | Game Developer
+                    </h2>
+                    <p class="text-slate-400 text-lg leading-relaxed max-w-2xl">
+                        Especialista no ecossistema <span class="text-violet-400 font-semibold">.NET</span> e no desenho de arquiteturas distribuídas de larga escala. Paralelamente, atuo na engenharia de videojogos, da lógica estrutural aos algoritmos de gameplay e design de recursos digitais.
+                    </p>
+                    <div class="flex flex-wrap gap-4 pt-4">
+                        <a href="#contato" class="px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium transition-all shadow-lg shadow-violet-600/20 hover:shadow-violet-600/30 flex items-center gap-2">
+                            Entrar em Contacto
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </a>
+                        <button onclick="togglePortfolioMode()" class="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-medium transition-all flex items-center gap-2">
+                            Ver Game Studio Retrô
+                            <span>🎮</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 relative">
+                    <!-- Maquete Visual Interativa representando a estrutura C# -->
+                    <div class="rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md overflow-hidden shadow-2xl">
+                        <!-- Cabeçalho com controlos do SO -->
+                        <div class="flex items-center justify-between px-4 py-3 bg-slate-950/80 border-b border-slate-800">
+                            <div class="flex gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-red-500/80 block"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-500/80 block"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-500/80 block"></span>
+                            </div>
+                            <span class="text-xs text-slate-500 font-code">SystemArchitect.cs</span>
+                            <span class="w-12"></span>
+                        </div>
+                        <div class="p-6 font-code text-xs sm:text-sm text-slate-400 space-y-2 overflow-x-auto">
+                            <p class="text-cyan-400">using <span class="text-slate-200">System.Threading.Tasks</span>;</p>
+                            <p class="text-cyan-400">using <span class="text-slate-200">Microsoft.AspNetCore.Mvc</span>;</p>
+                            <p class="text-slate-600">// Andrews Vinícius - Especialista em .NET Core</p>
+                            <p class="text-blue-400">namespace <span class="text-emerald-400">Portfolio.Backend.Core</span></p>
+                            <p class="text-slate-300">{</p>
+                            <div class="pl-4 space-y-1">
+                                <p class="text-blue-400">public class <span class="text-emerald-400">SeniorDeveloper</span> : <span class="text-purple-400">IBootstrap</span></p>
+                                <p class="text-slate-300">{</p>
+                                <div class="pl-4 space-y-1">
+                                    <p class="text-yellow-400">public async <span class="text-blue-400">Task&lt;Architecture&gt;</span> <span class="text-orange-400">BuildScalableSystem</span>()</p>
+                                    <p class="text-slate-300">{</p>
+                                    <div class="pl-4 space-y-1 text-slate-500">
+                                        <p class="text-slate-300">var app = <span class="text-blue-400">new</span> SystemBuilder()</p>
+                                        <p class="text-slate-300">   .UseCleanArchitecture()</p>
+                                        <p class="text-slate-300">   .ImplementSOLID()</p>
+                                        <p class="text-slate-300">   .ConfigureDockerAndKubernetes()</p>
+                                        <p class="text-slate-300">   .DeployToAzureCloud();</p>
+                                        <p class="text-indigo-400">return <span class="text-slate-300">await app.ExecuteAsync();</span></p>
+                                    </div>
+                                    <p class="text-slate-300">}</p>
+                                </div>
+                                <p class="text-slate-300">}</p>
+                            </div>
+                            <p class="text-slate-300">}</p>
+                        </div>
+                        <!-- Detalhes do rodapé -->
+                        <div class="bg-slate-950/50 px-6 py-3 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center">
+                            <span>Ln 14, Col 21</span>
+                            <span>UTF-8</span>
+                            <span class="text-emerald-500 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Node
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="max-w-7xl mx-auto px-6 py-12">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div class="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-violet-500/30 transition-all text-center">
+                    <p class="text-3xl sm:text-4xl font-extrabold text-violet-400 mb-1">8+</p>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">Anos de Experiência Backend</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-violet-500/30 transition-all text-center">
+                    <p class="text-3xl sm:text-4xl font-extrabold text-indigo-400 mb-1">50+</p>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">APIs RESTful & Microsserviços</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-violet-500/30 transition-all text-center">
+                    <p class="text-3xl sm:text-4xl font-extrabold text-cyan-400 mb-1">100k+</p>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">Requisições/Minuto Escaladas</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-violet-500/30 transition-all text-center">
+                    <p class="text-3xl sm:text-4xl font-extrabold text-emerald-400 mb-1">10+</p>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">Jogos Digitais Autorais</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="sobre" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-900">
+            <div class="grid lg:grid-cols-12 gap-12 items-start">
+                <div class="lg:col-span-4">
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight mb-4">Sobre o Andrews</h2>
+                    <div class="h-1.5 w-16 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full mb-6"></div>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                        Uma ponte técnica e conceitual perfeita entre a engenharia de sistemas de alto desempenho e o mundo artístico dos videojogos.
+                    </p>
+                    <div class="p-4 rounded-xl bg-indigo-950/20 border border-indigo-900/30 text-xs text-indigo-300 leading-normal">
+                        <strong>Filosofia de Código:</strong> "Qualidade e sustentabilidade do software não são negociáveis. Sistemas corporativos precisam ser altamente escaláveis; motores de jogos precisam de otimização milimétrica."
+                    </div>
+                </div>
+                <div class="lg:col-span-8 space-y-6 text-slate-300">
+                    <p class="text-base sm:text-lg leading-relaxed">
+                        Engenheiro de Software com forte atuação no <strong class="text-white">ecossistema .NET</strong> e no desenvolvimento de arquiteturas de sistemas distribuídos robustos e resilientes. Tenho liderado com sucesso projetos de migração de sistemas monolíticos complexos para soluções ágeis de microsserviços modernos, agregando valor técnico a grandes marcas de mercado.
+                    </p>
+                    <p class="text-base sm:text-lg leading-relaxed">
+                        No panorama de <strong class="text-white">Game Development</strong>, trabalho de forma independente integrando engenharia rigorosa com artes visuais (Pixel Art) e a composição sonora sintética clássica de 8-bits. Utilizo as mesmas diretrizes empresariais nos meus jogos: testes intensivos de carga, padrões arquiteturais focados em eficiência de memória (como ECS) e integração contínua (CI/CD).
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-900">
+            <div class="mb-12 text-center">
+                <h2 class="text-3xl font-bold tracking-tight mb-2">My Stack & Skills</h2>
+                <p class="text-slate-400 max-w-xl mx-auto">Tecnologias, metodologias e padrões que domino de forma madura ao longo do meu percurso.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Core Backend -->
+                <div class="p-6 rounded-2xl bg-slate-900/30 border border-slate-800 hover:border-violet-500/20 transition-all space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-violet-500/10 text-violet-400">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                        </div>
+                        <h3 class="font-bold text-lg text-white">Backend Core</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-800/80 text-xs text-slate-200 border border-slate-700/50 flex items-center gap-1.5"><img src="https://img.shields.io/badge/-C%23-239120?style=flat&logo=c-sharp&logoColor=white" class="h-3.5" alt="C#" /></span>
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-800/80 text-xs text-slate-200 border border-slate-700/50 flex items-center gap-1.5"><img src="https://img.shields.io/badge/-.NET-512BD4?style=flat&logo=.net&logoColor=white" class="h-3.5" alt=".NET" /></span>
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-800/80 text-xs text-slate-200 border border-slate-700/50">Web API</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-800/80 text-xs text-slate-200 border border-slate-700/50">EF Core</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-800/80 text-xs text-slate-200 border border-slate-700/50">WCF & Services</span>
+                    </div>
+                </div>
+
+                <!-- Databases -->
+                <div class="p-6 rounded-2xl bg-slate-900/30 border border-slate-800 hover:border-indigo-500/20 transition-all space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                        </div>
+                        <h3 class="font-bold text-lg text-white">Bancos de Dados</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-SQL_Server-CC2927?style=flat&logo=microsoft-sql-server&logoColor=white" class="h-3" alt="SQL Server" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Postgres-4169E1?style=flat&logo=postgresql&logoColor=white" class="h-3" alt="Postgres" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Oracle-F80000?style=flat&logo=oracle&logoColor=white" class="h-3" alt="Oracle" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-MongoDB-47A248?style=flat&logo=mongodb&logoColor=white" class="h-3" alt="MongoDB" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Redis-DC382D?style=flat&logo=redis&logoColor=white" class="h-3" alt="Redis" /></span>
+                    </div>
+                </div>
+
+                <!-- Cloud & DevOps -->
+                <div class="p-6 rounded-2xl bg-slate-900/30 border border-slate-800 hover:border-cyan-500/20 transition-all space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                        </div>
+                        <h3 class="font-bold text-lg text-white">DevOps & Nuvem</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Azure-0089D6?style=flat&logo=microsoft-azure&logoColor=white" class="h-3" alt="Azure" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-DevOps-0078D7?style=flat&logo=azure-devops&logoColor=white" class="h-3" alt="Azure DevOps" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Docker-2496ED?style=flat&logo=docker&logoColor=white" class="h-3" alt="Docker" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Git-F05032?style=flat&logo=git&logoColor=white" class="h-3" alt="Git" /></span>
+                    </div>
+                </div>
+
+                <!-- Games and Frontend -->
+                <div class="p-6 rounded-2xl bg-slate-900/30 border border-slate-800 hover:border-emerald-500/20 transition-all space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        </div>
+                        <h3 class="font-bold text-lg text-white">Game Dev & UI</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Unity-000000?style=flat&logo=unity&logoColor=white" class="h-3" alt="Unity" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-Godot-478CBF?style=flat&logo=godot-engine&logoColor=white" class="h-3" alt="Godot" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-VueJS-4FC08D?style=flat&logo=vuedotjs&logoColor=white" class="h-3" alt="Vue.js" /></span>
+                        <span class="px-2 py-1 rounded bg-slate-800/80 text-xs text-slate-300 flex items-center gap-1"><img src="https://img.shields.io/badge/-JS-F7DF1E?style=flat&logo=javascript&logoColor=black" class="h-3" alt="JavaScript" /></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listas de engenharia detalhadas -->
+            <div class="mt-12 grid md:grid-cols-2 gap-8 bg-slate-900/20 rounded-2xl border border-slate-850 p-6 sm:p-8">
+                <div>
+                    <h4 class="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-violet-500 rounded-full"></span>
+                        Arquitetura & Qualidade
+                    </h4>
+                    <ul class="space-y-3 text-slate-400 text-sm">
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-violet-400 mt-1">✔</span>
+                            <span><strong>Clean Architecture & DDD:</strong> Isolamento eficaz do domínio de negócio e implementação estruturada do padrão CQRS com MediatR.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-violet-400 mt-1">✔</span>
+                            <span><strong>Princípios SOLID:</strong> Design altamente coeso, extensível e acoplamento minimizado.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-violet-400 mt-1">✔</span>
+                            <span><strong>Testabilidade Automatizada:</strong> Desenvolvimento de suites extensas de testes unitários e de integração utilizando xUnit e Moq.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-violet-400 mt-1">✔</span>
+                            <span><strong>Design Patterns (GoF):</strong> Aplicação madura de padrões criacionais, estruturais e comportamentais (Factory, Strategy, Observer) para resolver problemas arquiteturais complexos de forma elegante.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
+                        Engenharia de Videojogos
+                    </h4>
+                    <ul class="space-y-3 text-slate-400 text-sm">
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-indigo-400 mt-1">✔</span>
+                            <span><strong>Ciclos de Processamento Otimizados:</strong> Gestão cirúrgica de recursos e redução de alocações na Heap de modo a evitar pausas do Garbage Collector em tempo de renderização.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-indigo-400 mt-1">✔</span>
+                            <span><strong>Desenho de Áudio Clássico:</strong> Engenharia sonora retro utilizando técnicas de síntese em frequências harmónicas quadradas e triangulares.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="text-indigo-400 mt-1">✔</span>
+                            <span><strong>Direção de Pixel Art:</strong> Conceção visual autoral integrada eficientemente em malhas de sprites (Spritesheets).</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="arquitetura" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-900">
+            <div class="mb-12 text-center">
+                <h2 class="text-3xl font-bold tracking-tight mb-2">Clean Architecture Interativa</h2>
+                <p class="text-slate-400 max-w-xl mx-auto">Selecione uma das camadas do diagrama abaixo para compreender o fluxo lógico das soluções backend.</p>
+            </div>
+
+            <div class="grid lg:grid-cols-12 gap-12 items-center">
+                <!-- Diagramas Interativos CSS -->
+                <div class="lg:col-span-6 flex justify-center items-center py-8">
+                    <div class="relative w-[340px] h-[340px] sm:w-[400px] sm:h-[400px] flex items-center justify-center">
+                        
+                        <!-- Camada 4: Infraestrutura & Apresentação -->
+                        <div id="arch-layer-infra" onclick="selectArchLayer('infra')" class="absolute inset-0 rounded-full border-4 border-dashed border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 cursor-pointer flex items-start justify-center pt-2 transition-all duration-300">
+                            <span class="text-xxs sm:text-xs font-bold tracking-wider text-cyan-400 font-code uppercase">Infra & Apresentação</span>
+                        </div>
+
+                        <!-- Camada 3: Adaptadores de Interface / WebAPI -->
+                        <div id="arch-layer-adapters" onclick="selectArchLayer('adapters')" class="absolute inset-8 rounded-full border-2 border-indigo-500/40 bg-indigo-500/5 hover:bg-indigo-500/10 cursor-pointer flex items-start justify-center pt-2 transition-all duration-300">
+                            <span class="text-xxs sm:text-xs font-bold tracking-wider text-indigo-400 font-code uppercase">Adapters / APIs</span>
+                        </div>
+
+                        <!-- Camada 2: Aplicação / Casos de Uso -->
+                        <div id="arch-layer-application" onclick="selectArchLayer('app')" class="absolute inset-16 rounded-full border-2 border-violet-500/50 bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer flex items-start justify-center pt-2 transition-all duration-300">
+                            <span class="text-xxs sm:text-xs font-bold tracking-wider text-violet-400 font-code uppercase">Casos de Uso (Application)</span>
+                        </div>
+
+                        <!-- Camada 1: Domínio Central -->
+                        <div id="arch-layer-domain" onclick="selectArchLayer('domain')" class="absolute inset-24 rounded-full border-4 border-double border-pink-500 bg-pink-500/10 hover:bg-pink-500/20 cursor-pointer flex items-center justify-center text-center transition-all duration-300">
+                            <div class="p-2">
+                                <span class="block text-xs sm:text-sm font-extrabold text-pink-400 font-code uppercase">Domain</span>
+                                <span class="block text-xxs text-pink-300/80 font-mono mt-0.5">Core Entities</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Painel Informativo Lateral -->
+                <div class="lg:col-span-6">
+                    <div class="p-6 sm:p-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl" id="arch-info-panel">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="h-3 w-3 rounded-full bg-pink-500 animate-pulse"></span>
+                            <h3 class="text-xl font-bold text-pink-400 font-code" id="arch-info-title">Núcleo do Domínio (Domain)</h3>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed mb-6" id="arch-info-desc">
+                            O coração inabalável do software. Esta camada é 100% independente de base de dados, frameworks ou interfaces web. Contém apenas regras puras de negócios, entidades, objetos de valor e interfaces de repositórios que espelham o negócio.
+                        </p>
+                        
+                        <h4 class="text-white text-xs font-bold uppercase tracking-wider mb-2 font-code">Padrões e Componentes Típicos:</h4>
+                        <ul class="space-y-2 text-slate-400 text-xs font-code list-disc pl-5" id="arch-info-list">
+                            <li>Domain Entities & Aggregate Roots</li>
+                            <li>Value Objects (Garante consistência)</li>
+                            <li>Interfaces dos Repositórios</li>
+                            <li>Exceptions personalizadas de negócios</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer id="contato" class="bg-slate-950 border-t border-slate-900 pt-20 pb-12 relative">
+            <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 lg:grid-cols-12 gap-12 pb-12">
+                
+                <div class="lg:col-span-6 space-y-6">
+                    <h3 class="text-2xl font-bold text-white">Pronto para elevar o nível técnico dos seus projetos?</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed max-w-md">
+                        Vamos conversar sobre arquitetura de sistemas robustos, migrações para nuvens empresariais, otimização extrema .NET ou desenvolvimento ágil de motores e mecânicas de videojogos.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="https://www.linkedin.com/in/andrews-vinicius-20010184/" target="_blank" class="px-5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-sm text-slate-300 hover:text-white hover:border-violet-500/50 transition-all flex items-center gap-2">
+                            <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=flat-square&logo=linkedin&logoColor=white" alt="LinkedIn" class="h-5 rounded" />
+                            LinkedIn Oficial
+                        </a>
+                        <a href="mailto:andykenobi@gmail.com" class="px-5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-sm text-slate-300 hover:text-white hover:border-pink-500/50 transition-all flex items-center gap-2">
+                            <img src="https://img.shields.io/badge/Gmail-D14836?style=flat-square&logo=gmail&logoColor=white" alt="Gmail" class="h-5 rounded" />
+                            andykenobi@gmail.com
+                        </a>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-6 flex flex-col justify-between items-end">
+                    <div class="text-right">
+                        <span class="text-xs text-slate-500 uppercase block tracking-widest font-code">Localização</span>
+                        <span class="text-slate-300 text-sm font-semibold">Sorocaba, São Paulo - Brasil 🇧🇷 (Remoto Global)</span>
+                    </div>
+                    <div class="text-right pt-6 md:pt-0">
+                        <p class="text-xs text-slate-500">&copy; 2026 Andrews Vinícius. Todos os direitos reservados.</p>
+                        <p class="text-[10px] text-slate-600 font-mono mt-1">Escrito em C# e transcompilado para inovação.</p>
+                    </div>
+                </div>
+
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. MODO ARCADE RETRO (GAME DEVELOPMENT) -->
+    <!-- ========================================== -->
+    <div id="arcadeMode" class="hidden min-h-screen bg-neutral-950 text-emerald-400 font-code p-4 md:p-8 transition-all duration-500 relative">
+        <div class="absolute inset-0 bg-[radial-gradient(#111827_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none"></div>
+        
+        <div class="max-w-6xl mx-auto space-y-8 relative z-10">
+            
+            <!-- Barra de Título do Arcade -->
+            <div class="flex flex-col md:flex-row justify-between items-center bg-black/80 border-4 border-emerald-500 p-4 rounded-xl shadow-lg shadow-emerald-500/10">
+                <div class="text-center md:text-left space-y-2">
+                    <h1 class="font-arcade text-lg sm:text-2xl text-emerald-300 tracking-wider animate-pulse flex items-center gap-3">
+                        <span>🕹️</span> ANDY'S RETRO CABIN
+                    </h1>
+                    <p class="text-xs text-slate-400">Desenvolvimento Independente de Videojogos, Pixel Art & Áudio Retro</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex gap-4 text-xs font-arcade">
+                    <span class="px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-500 animate-bounce">INSERT COIN</span>
+                    <span class="px-3 py-1 bg-pink-950 text-pink-300 border border-pink-500">HI-SCORE: 99999</span>
+                </div>
+            </div>
+
+            <!-- Cabine de Arcade Física -->
+            <div class="grid lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Monitor de Jogo -->
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="bg-zinc-900 border-4 border-zinc-700 p-4 rounded-3xl shadow-2xl relative">
+                        <!-- Placa de Identificação do Ecrã -->
+                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-0.5 bg-zinc-700 text-zinc-300 font-arcade text-xxs rounded">
+                            CRT COLOR MONITOR
+                        </div>
+
+                        <!-- Monitor CRT Retro -->
+                        <div class="bg-black rounded-xl border-4 border-zinc-950 overflow-hidden relative crt-screen crt-flicker flex flex-col justify-between aspect-[4/3] max-w-full">
+                            
+                            <!-- Menu Inicial Overlay -->
+                            <div id="gameMenuOverlay" class="absolute inset-0 bg-black/90 z-20 flex flex-col justify-center items-center p-2 sm:p-6 text-center space-y-2 sm:space-y-4 font-arcade overflow-y-auto">
+                                <span class="text-yellow-400 text-xs sm:text-sm tracking-widest animate-pulse">--- REFATORANDO JOGANDO ---</span>
+                                <h3 class="text-base sm:text-xl text-emerald-400 font-bold leading-normal">
+                                    DOTNET DEFENDER <br> <span class="text-[10px] text-pink-500">v1.2 - REFACTORING EDITION</span>
+                                </h3>
+                                <p class="hidden sm:block text-slate-400 text-[9px] max-w-sm leading-relaxed">
+                                    Controle o Dev Kit do Andrews! Colete moedas de <strong class="text-blue-400">.NET, SOLID e EF Core</strong> e desvie de monstros como <strong class="text-red-500">Bugs, Monólitos Legados e Código Esparguete</strong>!
+                                </p>
+                                <div class="bg-zinc-900/80 border border-zinc-800 p-2 sm:p-3 rounded text-[8px] sm:text-[9px] text-zinc-300 w-full max-w-xs space-y-1">
+                                    <p class="text-emerald-400 uppercase">Controlos:</p>
+                                    <p>PC: Seta Esquerda / Direita</p>
+                                    <p>Telemóvel: Deslize o dedo sobre a tela do jogo</p>
+                                </div>
+                                <button onclick="startGame()" class="px-6 py-3 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold border-2 border-white rounded transform hover:scale-105 transition-all text-xs">
+                                    INICIAR JOGO
+                                </button>
+                            </div>
+
+                            <!-- Canvas do Jogo -->
+                            <canvas id="gameCanvas" class="w-full h-full block bg-zinc-950 touch-none"></canvas>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Estatísticas e Ficha Técnica do Criador -->
+                <div class="lg:col-span-4 space-y-6">
+                    
+                    <!-- Ficha Técnica de Game Dev -->
+                    <div class="bg-black/80 border-2 border-emerald-500/40 p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center gap-3 border-b border-emerald-900 pb-3">
+                            <span class="text-xl">🛠️</span>
+                            <h3 class="font-arcade text-xs text-emerald-300">ENGINES & FERRAMENTAS</h3>
+                        </div>
+                        
+                        <div class="space-y-4 text-xs">
+                            <div>
+                                <div class="flex justify-between text-[10px] mb-1">
+                                    <span>GODOT ENGINE (C# / GDScript)</span>
+                                    <span class="text-emerald-300">90%</span>
+                                </div>
+                                <div class="w-full bg-emerald-950 h-2.5 rounded border border-emerald-800">
+                                    <div class="bg-emerald-500 h-full rounded" style="width: 90%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-[10px] mb-1">
+                                    <span>UNITY 2D/3D (C# Avançado)</span>
+                                    <span class="text-emerald-300">85%</span>
+                                </div>
+                                <div class="w-full bg-emerald-950 h-2.5 rounded border border-emerald-800">
+                                    <div class="bg-emerald-500 h-full rounded" style="width: 85%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-[10px] mb-1">
+                                    <span>PIXEL ART (Aseprite / Spritesheets)</span>
+                                    <span class="text-emerald-300">75%</span>
+                                </div>
+                                <div class="w-full bg-emerald-950 h-2.5 rounded border border-emerald-800">
+                                    <div class="bg-emerald-500 h-full rounded" style="width: 75%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-[10px] mb-1">
+                                    <span>SÍNTESE SONORA (Beeps / Chiptune)</span>
+                                    <span class="text-emerald-300">80%</span>
+                                </div>
+                                <div class="w-full bg-emerald-950 h-2.5 rounded border border-emerald-800">
+                                    <div class="bg-emerald-500 h-full rounded" style="width: 80%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manifesto -->
+                    <div class="bg-black/80 border-2 border-emerald-500/40 p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center gap-3 border-b border-emerald-900 pb-3">
+                            <span class="text-xl">📝</span>
+                            <h3 class="font-arcade text-xs text-emerald-300">DEV LOG / MANIFESTO</h3>
+                        </div>
+                        <p class="text-[10px] text-slate-400 leading-relaxed font-code">
+                            &gt; "Escrever um jogo de alto nível técnico exige robustez lógica: matemática linear, física fluida a 60hz e a aplicação rigorosa de Game Programming Patterns (State, Object Pool, Observer) para máxima eficiência de memória e processamento."
+                        </p>
+                        <p class="text-[10px] text-emerald-400 font-mono">
+                            -- Andrews Vinícius, Game Developer Independente.
+                        </p>
+                    </div>
+
+                    <!-- Redes e Conectividade -->
+                    <div class="bg-black/80 border-2 border-emerald-500/40 p-6 rounded-2xl space-y-4">
+                        <h3 class="font-arcade text-xs text-emerald-300 border-b border-emerald-900 pb-2">CONECTAR SINAL RETRÔ</h3>
+                        <div class="grid grid-cols-2 gap-2 text-center text-[10px] font-arcade">
+                            <a href="https://www.linkedin.com/in/andrews-vinicius-20010184/" target="_blank" class="p-2.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-600 rounded text-emerald-300 transition-all">
+                                LINKEDIN
+                            </a>
+                            <a href="mailto:andykenobi@gmail.com" class="p-2.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-600 rounded text-emerald-300 transition-all">
+                                EMAIL
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+<script src="script.js"></script>
 </body>
 </html>
